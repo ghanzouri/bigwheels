@@ -91,7 +91,8 @@ Result CopyBitmapToImage(
     uint32_t            mipLevel,
     uint32_t            arrayLayer,
     grfx::ResourceState stateBefore,
-    grfx::ResourceState stateAfter)
+    grfx::ResourceState stateAfter,
+    const int           imageDepth)
 {
     PPX_ASSERT_NULL_ARG(pQueue);
     PPX_ASSERT_NULL_ARG(pBitmap);
@@ -145,12 +146,12 @@ Result CopyBitmapToImage(
     // Copy info
     grfx::BufferToImageCopyInfo copyInfo = {};
     copyInfo.srcBuffer.imageWidth        = pBitmap->GetWidth();
-    copyInfo.srcBuffer.imageHeight       = pBitmap->GetHeight();
+    copyInfo.srcBuffer.imageHeight       = pBitmap->GetHeight() / imageDepth;
     copyInfo.srcBuffer.imageRowStride    = alignedRowStride;
     copyInfo.srcBuffer.footprintOffset   = 0;
     copyInfo.srcBuffer.footprintWidth    = pBitmap->GetWidth();
-    copyInfo.srcBuffer.footprintHeight   = pBitmap->GetHeight();
-    copyInfo.srcBuffer.footprintDepth    = 1;
+    copyInfo.srcBuffer.footprintHeight   = pBitmap->GetHeight() / imageDepth;
+    copyInfo.srcBuffer.footprintDepth    = imageDepth;
     copyInfo.dstImage.mipLevel           = mipLevel;
     copyInfo.dstImage.arrayLayer         = arrayLayer;
     copyInfo.dstImage.arrayLayerCount    = 1;
@@ -158,8 +159,8 @@ Result CopyBitmapToImage(
     copyInfo.dstImage.y                  = 0;
     copyInfo.dstImage.z                  = 0;
     copyInfo.dstImage.width              = pBitmap->GetWidth();
-    copyInfo.dstImage.height             = pBitmap->GetHeight();
-    copyInfo.dstImage.depth              = 1;
+    copyInfo.dstImage.height             = pBitmap->GetHeight() / imageDepth;
+    copyInfo.dstImage.depth              = imageDepth;
 
     // Copy to GPU image
     ppxres = pQueue->CopyBufferToImage(
@@ -184,7 +185,8 @@ Result CreateImageFromBitmap(
     grfx::Queue*        pQueue,
     const Bitmap*       pBitmap,
     grfx::Image**       ppImage,
-    const ImageOptions& options)
+    const ImageOptions& options,
+    const int           imageDepth)
 {
     PPX_ASSERT_NULL_ARG(pQueue);
     PPX_ASSERT_NULL_ARG(pBitmap);
@@ -199,14 +201,17 @@ Result CreateImageFromBitmap(
     uint32_t maxMipLevelCount = Mipmap::CalculateLevelCount(pBitmap->GetWidth(), pBitmap->GetHeight());
     uint32_t mipLevelCount    = std::min<uint32_t>(options.mMipLevelCount, maxMipLevelCount);
 
+    // TODO(ghanz): Implement mipmaps for 3d images, for now set mipLevelCount to 1.
+    mipLevelCount = (imageDepth > 1) ? 1 : mipLevelCount;
+
     // Create target image
     grfx::ImagePtr targetImage;
     {
         grfx::ImageCreateInfo ci       = {};
-        ci.type                        = grfx::IMAGE_TYPE_2D;
+        ci.type                        = (imageDepth == 1) ? grfx::IMAGE_TYPE_2D : grfx::IMAGE_TYPE_3D;
         ci.width                       = pBitmap->GetWidth();
-        ci.height                      = pBitmap->GetHeight();
-        ci.depth                       = 1;
+        ci.height                      = pBitmap->GetHeight() / imageDepth;
+        ci.depth                       = imageDepth;
         ci.format                      = ToGrfxFormat(pBitmap->GetFormat());
         ci.sampleCount                 = grfx::SAMPLE_COUNT_1;
         ci.mipLevelCount               = mipLevelCount;
@@ -241,7 +246,8 @@ Result CreateImageFromBitmap(
             mipLevel,
             0,
             grfx::RESOURCE_STATE_SHADER_RESOURCE,
-            grfx::RESOURCE_STATE_SHADER_RESOURCE);
+            grfx::RESOURCE_STATE_SHADER_RESOURCE,
+            imageDepth);
         if (Failed(ppxres)) {
             return ppxres;
         }
@@ -719,7 +725,8 @@ Result CreateImageFromFile(
     const std::filesystem::path& path,
     grfx::Image**                ppImage,
     const ImageOptions&          options,
-    bool                         useGpu)
+    bool                         useGpu,
+    const int                    imageDepth)
 {
     PPX_ASSERT_NULL_ARG(pQueue);
     PPX_ASSERT_NULL_ARG(ppImage);
@@ -741,7 +748,7 @@ Result CreateImageFromFile(
             ppxres = CreateImageFromBitmapGpu(pQueue, &bitmap, ppImage, options);
         }
         else {
-            ppxres = CreateImageFromBitmap(pQueue, &bitmap, ppImage, options);
+            ppxres = CreateImageFromBitmap(pQueue, &bitmap, ppImage, options, imageDepth);
         }
 
         if (Failed(ppxres)) {
