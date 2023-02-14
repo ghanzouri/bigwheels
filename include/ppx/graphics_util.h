@@ -63,6 +63,14 @@ private:
         bool                         useGpu,
         const int                    imageDepth);
 
+    friend Result CreateImageFromArray(
+        grfx::Queue*                 pQueue,
+        grfx::Image**                ppImage,
+        const ImageOptions&          options,
+        float                        array[],
+        const int                    imageWidth,
+        const int                    imageHeight);
+
     friend Result CreateImageFromBitmapGpu(
         grfx::Queue*        pQueue,
         const Bitmap*       pBitmap,
@@ -103,6 +111,17 @@ Result CreateImageFromFile(
     const ImageOptions&          options = ImageOptions(),
     bool                         useGpu  = false,
     const int                    imageDepth = 1);
+
+//! @fn CreateImageFromArray
+//!
+//!
+Result CreateImageFromArray(
+    grfx::Queue*                 pQueue,
+    grfx::Image**                ppImage,
+    const ImageOptions&          options,
+    float                        array[],
+    const int                    imageWidth,
+    const int                    imageHeight);
 
 //! @fn CreateMipMapsForImage
 //!

@@ -743,14 +743,15 @@ Result CreateImageFromFile(
         if (Failed(ppxres)) {
             return ppxres;
         }
-
         if (useGpu) {
+            if (imageDepth > 1) {
+                return ppx::ERROR_FAILED;
+            }
             ppxres = CreateImageFromBitmapGpu(pQueue, &bitmap, ppImage, options);
         }
         else {
             ppxres = CreateImageFromBitmap(pQueue, &bitmap, ppImage, options, imageDepth);
         }
-
         if (Failed(ppxres)) {
             return ppxres;
         }
@@ -767,7 +768,7 @@ Result CreateImageFromFile(
     else {
         ppxres = Result::ERROR_IMAGE_FILE_LOAD_FAILED;
     }
-
+    
     double fnEndTime = timer.SecondsSinceStart();
     float  fnElapsed = static_cast<float>(fnEndTime - fnStartTime);
     if (ppxres == Result::SUCCESS) {
@@ -775,6 +776,70 @@ Result CreateImageFromFile(
     }
     else {
         PPX_LOG_INFO("Failed to create image from image file: " << path);
+    }
+
+    return ppx::SUCCESS;
+}
+
+// -------------------------------------------------------------------------------------------------
+// CreateImageFromArray
+// The source data `array` has single channel and we are writing to the R channel of an RGBA image
+// -------------------------------------------------------------------------------------------------
+
+Result CreateImageFromArray(
+    grfx::Queue*                 pQueue,
+    grfx::Image**                ppImage,
+    const ImageOptions&          options,
+    float*                       array,
+    const int                    imageWidth,
+    const int                    imageHeight)
+{
+    //TODO(ghanz): generalize float* with void*
+    PPX_ASSERT_NULL_ARG(pQueue);
+    PPX_ASSERT_NULL_ARG(ppImage);
+
+    Timer timer;
+    PPX_ASSERT_MSG(timer.Start() == ppx::TIMER_RESULT_SUCCESS, "timer start failed");
+    double fnStartTime = timer.SecondsSinceStart();
+
+    Result ppxres;
+    // Create bitmap from array
+    Bitmap bitmap;
+    Bitmap* pBitmap = &bitmap;
+    Bitmap::Format format = Bitmap::FORMAT_RGBA_FLOAT;
+    ppxres = Bitmap::Create(static_cast<uint32_t>(imageWidth), static_cast<uint32_t>(imageHeight), format, pBitmap);
+    size_t nbytes = Bitmap::StorageFootprint(static_cast<uint32_t>(imageWidth), static_cast<uint32_t>(imageHeight), format); 
+
+    // Fill array data to bitmap at Red channel
+    char* pSrc  = reinterpret_cast<char*>(array);
+    char* pDst  = pBitmap->GetData();
+    const uint32_t srcChannelSize = sizeof(float);
+    const uint32_t dstPixelStride = pBitmap->GetPixelStride();
+    for (uint32_t y = 0; y < pBitmap->GetHeight(); ++y) {
+        for (uint32_t x = 0; x < pBitmap->GetWidth(); ++x) {
+            memcpy(pDst, pSrc, srcChannelSize);
+            pSrc += srcChannelSize;
+            pDst += dstPixelStride;
+        }
+    }
+
+    if (Failed(ppxres)) {
+        return ppxres;
+    }
+
+    ppxres = CreateImageFromBitmap(pQueue, &bitmap, ppImage, options);
+    
+    if (Failed(ppxres)) {
+        return ppxres;
+    }
+
+    double fnEndTime = timer.SecondsSinceStart();
+    float  fnElapsed = static_cast<float>(fnEndTime - fnStartTime);
+    if (ppxres == Result::SUCCESS) {
+        PPX_LOG_INFO("Created image from array: (" << FloatString(fnElapsed) << " seconds)");
+    }
+    else {
+        PPX_LOG_INFO("Failed to create image from array");
     }
 
     return ppx::SUCCESS;
