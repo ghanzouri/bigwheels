@@ -46,7 +46,8 @@ private:
         grfx::Queue*        pQueue,
         const Bitmap*       pBitmap,
         grfx::Image**       ppImage,
-        const ImageOptions& options);
+        const ImageOptions& options,
+        const int           imageDepth);
 
     friend Result CreateImageFromCompressedImage(
         grfx::Queue*        pQueue,
@@ -59,7 +60,16 @@ private:
         const std::filesystem::path& path,
         grfx::Image**                ppImage,
         const ImageOptions&          options,
-        bool                         useGpu);
+        bool                         useGpu,
+        const int                    imageDepth);
+
+    friend Result CreateImageFromArray(
+        grfx::Queue*                 pQueue,
+        grfx::Image**                ppImage,
+        const ImageOptions&          options,
+        float                        array[],
+        const int                    imageWidth,
+        const int                    imageHeight);
 
     friend Result CreateImageFromBitmapGpu(
         grfx::Queue*        pQueue,
@@ -78,7 +88,8 @@ Result CopyBitmapToImage(
     uint32_t            mipLevel,
     uint32_t            arrayLayer,
     grfx::ResourceState stateBefore,
-    grfx::ResourceState stateAfter);
+    grfx::ResourceState stateAfter,
+    const int           imageDepth = 1);
 
 //! @fn CreateImageFromBitmap
 //!
@@ -87,7 +98,8 @@ Result CreateImageFromBitmap(
     grfx::Queue*        pQueue,
     const Bitmap*       pBitmap,
     grfx::Image**       ppImage,
-    const ImageOptions& options = ImageOptions());
+    const ImageOptions& options = ImageOptions(),
+    const int           imageDepth = 1);
 
 //! @fn CreateImageFromFile
 //!
@@ -97,7 +109,19 @@ Result CreateImageFromFile(
     const std::filesystem::path& path,
     grfx::Image**                ppImage,
     const ImageOptions&          options = ImageOptions(),
-    bool                         useGpu  = false);
+    bool                         useGpu  = false,
+    const int                    imageDepth = 1);
+
+//! @fn CreateImageFromArray
+//!
+//!
+Result CreateImageFromArray(
+    grfx::Queue*                 pQueue,
+    grfx::Image**                ppImage,
+    const ImageOptions&          options,
+    float                        array[],
+    const int                    imageWidth,
+    const int                    imageHeight);
 
 //! @fn CreateMipMapsForImage
 //!
